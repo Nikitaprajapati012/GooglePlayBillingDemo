@@ -1,0 +1,43 @@
+# OSX
+.DS_Store
+
+# Node / Dependencies
+node_modules/
+npm-debug.log
+yarn-error.log
+yarn-debug.log*
+
+# Android / Gradle
+android/.gradle/
+android/app/build/
+android/build/
+.gradle/
+build/
+local.properties
+*.iml
+*.hprof
+.cxx/
+
+# Android generated files
+*.apk
+*.aab
+
+# Keystores (keep debug.keystore if needed for React Native local run)
+*.jks
+*.keystore
+!android/app/debug.keystore
+
+# IDE / Editors
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Metro / React Native
+.metro-health-check*
+*.jsbundle
+
+# iOS
+ios/Pods/
+ios/build/
+DerivedData/
