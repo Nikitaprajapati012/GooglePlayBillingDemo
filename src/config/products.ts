@@ -4,6 +4,9 @@ export const APP_PACKAGE_NAME = 'com.playbillingdemo';
 
 /**
  * Product SKUs for Google Play Console In-App Products
+ * Matching manager's specification:
+ * Consumables: credits_100, credits_500, credits_1000
+ * Non-consumable: lifetime_premium (aliased with premium_lifetime for backwards compatibility)
  */
 export const CONSUMABLE_PRODUCT_SKUS = [
   'credits_100',
@@ -12,19 +15,23 @@ export const CONSUMABLE_PRODUCT_SKUS = [
 ] as const;
 
 export const NON_CONSUMABLE_PRODUCT_SKUS = [
+  'lifetime_premium',
   'premium_lifetime',
 ] as const;
 
 /**
- * Subscription Product ID and Plan IDs for Google Play Console Subscriptions
+ * Subscription Product ID and Base Plan IDs for Google Play Console Subscriptions
+ * Supports both standard base plan IDs: 'monthly' and 'yearly', as well as 'monthly-plan' / 'yearly-plan'
  */
 export const SUBSCRIPTION_SKUS = [
   'premium_subscription',
 ] as const;
 
 export const SUBSCRIPTION_BASE_PLAN_IDS = {
-  MONTHLY: 'monthly-plan',
-  YEARLY: 'yearly-plan',
+  MONTHLY: 'monthly',
+  YEARLY: 'yearly',
+  MONTHLY_ALT: 'monthly-plan',
+  YEARLY_ALT: 'yearly-plan',
 } as const;
 
 /**
@@ -59,7 +66,7 @@ export const PRODUCT_CATALOG: ProductCatalogItem[] = [
     creditsAwarded: 1000,
   },
   {
-    productId: 'premium_lifetime',
+    productId: 'lifetime_premium',
     type: 'inapp',
     category: 'non_consumable',
     title: 'Lifetime Premium',
@@ -67,7 +74,7 @@ export const PRODUCT_CATALOG: ProductCatalogItem[] = [
     defaultPrice: '₹999',
   },
   {
-    productId: 'premium_subscription:monthly-plan',
+    productId: 'premium_subscription:monthly',
     type: 'subs',
     category: 'subscription',
     title: 'Monthly Premium',
@@ -76,7 +83,7 @@ export const PRODUCT_CATALOG: ProductCatalogItem[] = [
     subscriptionPeriod: 'monthly',
   },
   {
-    productId: 'premium_subscription:yearly-plan',
+    productId: 'premium_subscription:yearly',
     type: 'subs',
     category: 'subscription',
     title: 'Yearly Premium',

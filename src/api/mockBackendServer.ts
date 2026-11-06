@@ -99,9 +99,11 @@ export const MockBackendServer = {
       };
     }
 
-    // 5. Identify Catalog Item (Exact match first, then subscription prefix match)
+    // 5. Identify Catalog Item (Exact match, aliases, then subscription prefix match)
     const catalogItem =
       PRODUCT_CATALOG.find(p => p.productId === req.productId) ||
+      (req.productId === 'premium_lifetime' ? PRODUCT_CATALOG.find(p => p.productId === 'lifetime_premium') : undefined) ||
+      (req.productId === 'lifetime_premium' ? PRODUCT_CATALOG.find(p => p.productId === 'premium_lifetime') : undefined) ||
       PRODUCT_CATALOG.find(
         p => p.category === 'subscription' && req.productId.startsWith(p.productId.split(':')[0])
       );

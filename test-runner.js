@@ -13,7 +13,10 @@ const CATALOG = {
   credits_100: { type: 'consumable', credits: 100 },
   credits_500: { type: 'consumable', credits: 500 },
   credits_1000: { type: 'consumable', credits: 1000 },
+  lifetime_premium: { type: 'non_consumable' },
   premium_lifetime: { type: 'non_consumable' },
+  'premium_subscription:monthly': { type: 'subscription', plan: 'monthly' },
+  'premium_subscription:yearly': { type: 'subscription', plan: 'yearly' },
   'premium_subscription:monthly-plan': { type: 'subscription', plan: 'monthly' },
   'premium_subscription:yearly-plan': { type: 'subscription', plan: 'yearly' },
 };
