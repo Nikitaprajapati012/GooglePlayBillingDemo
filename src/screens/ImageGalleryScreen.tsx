@@ -12,10 +12,12 @@ import {
   Dimensions,
 } from 'react-native';
 import { useUser } from '../context/UserContext';
+import { useBilling } from '../context/BillingContext';
 import { SAMPLE_GALLERY_IMAGES } from '../config/galleryImages';
 import { GalleryFilter, GalleryImage } from '../types/gallery';
 import { ImageDownloadService } from '../services/imageDownloadService';
 import { StorageService } from '../services/storageService';
+import { GoogleSubscriptionState } from '../types/billing';
 
 const { width } = Dimensions.get('window');
 const COLUMN_WIDTH = (width - 48) / 2;
@@ -25,18 +27,30 @@ interface ImageGalleryScreenProps {
 }
 
 export const ImageGalleryScreen: React.FC<ImageGalleryScreenProps> = ({ onNavigateToStore }) => {
-  const { isLifetimePremium, activeSubscription } = useUser();
+  const {
+    isLifetimePremium,
+    activeSubscription,
+    setLifetimePremiumStatus,
+    updateSubscription,
+  } = useUser();
+
+  const { simulateScenario } = useBilling();
 
   const [activeFilter, setActiveFilter] = useState<GalleryFilter>('All');
   const [downloadedIds, setDownloadedIds] = useState<string[]>([]);
   const [selectedImage, setSelectedImage] = useState<GalleryImage | null>(null);
   const [showPaywallModal, setShowPaywallModal] = useState<boolean>(false);
+  const [showIapConceptModal, setShowIapConceptModal] = useState<boolean>(false);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
   const [downloadProgress, setDownloadProgress] = useState<number>(0);
+  const [imageErrors, setImageErrors] = useState<Record<string, boolean>>({});
 
   // Check user entitlement
   const hasPremiumAccess = useMemo(() => {
-    return isLifetimePremium || (activeSubscription?.isActive && activeSubscription.expiryTimestamp > Date.now());
+    return (
+      isLifetimePremium ||
+      (activeSubscription?.isActive && activeSubscription.expiryTimestamp > Date.now())
+    );
   }, [isLifetimePremium, activeSubscription]);
 
   // Load downloaded images from storage
@@ -65,7 +79,7 @@ export const ImageGalleryScreen: React.FC<ImageGalleryScreenProps> = ({ onNaviga
 
   // Handle Download Request
   const handleDownloadPress = async (image: GalleryImage) => {
-    // Check entitlement first
+    // Check entitlement first (Zero-Trust)
     const entitlement = ImageDownloadService.checkEntitlement(
       image.isPremium,
       isLifetimePremium,
@@ -109,6 +123,38 @@ export const ImageGalleryScreen: React.FC<ImageGalleryScreenProps> = ({ onNaviga
 
   const isDownloaded = (id: string) => downloadedIds.includes(id);
 
+  // Quick IAP State Testing Helpers
+  const setTierFree = async () => {
+    await setLifetimePremiumStatus(false);
+    await updateSubscription(null);
+    Alert.alert('IAP State Changed', 'Account reverted to Free tier (Downloads locked for PRO images).');
+  };
+
+  const setTierMonthly = async () => {
+    await setLifetimePremiumStatus(false);
+    await updateSubscription({
+      isActive: true,
+      planId: 'monthly',
+      productId: 'premium_subscription:monthly',
+      expiryDate: new Date(Date.now() + 30 * 86400000).toLocaleDateString(),
+      expiryTimestamp: Date.now() + 30 * 86400000,
+      autoRenewing: true,
+      status: GoogleSubscriptionState.SUBSCRIPTION_STATE_ACTIVE,
+      purchaseToken: `tok_sim_sub_${Date.now()}`,
+    });
+    Alert.alert('IAP State Changed', 'Monthly Subscription activated! 4K Downloads unlocked.');
+  };
+
+  const setTierLifetime = async () => {
+    await setLifetimePremiumStatus(true);
+    Alert.alert('IAP State Changed', 'Lifetime Premium activated! Permanent 4K Downloads unlocked.');
+  };
+
+  const simulateExpiry = async () => {
+    await simulateScenario('EXPIRE');
+    Alert.alert('Subscription Expired', 'Subscription has ended. Premium downloads are now re-locked.');
+  };
+
   return (
     <View style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
@@ -131,9 +177,66 @@ export const ImageGalleryScreen: React.FC<ImageGalleryScreenProps> = ({ onNaviga
             </View>
           </View>
           <Text style={styles.headerSubtitle}>
-            Browse our curated collection. Free users enjoy HD previews and free downloads. Upgrade
-            to Premium for unlimited 4K Ultra-HD original files.
+            Curated high-resolution wallpapers. Free users can preview all photos and download HD
+            free items. Premium subscribers unlock 4K Ultra-HD original downloads.
           </Text>
+
+          {/* IAP Concept & Management Ribbon */}
+          <View style={styles.conceptRibbon}>
+            <TouchableOpacity
+              style={styles.conceptInfoBtn}
+              onPress={() => setShowIapConceptModal(true)}>
+              <Text style={styles.conceptInfoText}>💡 How In-App Purchase Entitlements Work</Text>
+            </TouchableOpacity>
+
+            <View style={styles.quickManagerBar}>
+              <Text style={styles.quickManagerLabel}>Test Tier:</Text>
+              <TouchableOpacity
+                style={[styles.quickTierBtn, !hasPremiumAccess && styles.quickTierBtnActive]}
+                onPress={setTierFree}>
+                <Text
+                  style={[
+                    styles.quickTierBtnText,
+                    !hasPremiumAccess && styles.quickTierBtnTextActive,
+                  ]}>
+                  Free
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.quickTierBtn,
+                  activeSubscription?.isActive && styles.quickTierBtnActive,
+                ]}
+                onPress={setTierMonthly}>
+                <Text
+                  style={[
+                    styles.quickTierBtnText,
+                    activeSubscription?.isActive && styles.quickTierBtnTextActive,
+                  ]}>
+                  Monthly
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.quickTierBtn, isLifetimePremium && styles.quickTierBtnActive]}
+                onPress={setTierLifetime}>
+                <Text
+                  style={[
+                    styles.quickTierBtnText,
+                    isLifetimePremium && styles.quickTierBtnTextActive,
+                  ]}>
+                  Lifetime
+                </Text>
+              </TouchableOpacity>
+
+              {activeSubscription?.isActive && (
+                <TouchableOpacity style={styles.quickTierBtnExpire} onPress={simulateExpiry}>
+                  <Text style={styles.quickTierBtnTextExpire}>Expire</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          </View>
         </View>
 
         {/* Filter Chips */}
@@ -176,6 +279,7 @@ export const ImageGalleryScreen: React.FC<ImageGalleryScreenProps> = ({ onNaviga
             filteredImages.map(image => {
               const downloaded = isDownloaded(image.id);
               const isCurrentlyDownloading = downloadingId === image.id;
+              const hasError = imageErrors[image.id];
 
               return (
                 <View key={image.id} style={styles.card}>
@@ -183,11 +287,22 @@ export const ImageGalleryScreen: React.FC<ImageGalleryScreenProps> = ({ onNaviga
                     activeOpacity={0.85}
                     onPress={() => setSelectedImage(image)}>
                     <View style={styles.imageWrapper}>
-                      <Image
-                        source={{ uri: image.thumbnailUrl }}
-                        style={styles.thumbnail}
-                        resizeMode="cover"
-                      />
+                      {!hasError ? (
+                        <Image
+                          source={{ uri: image.thumbnailUrl }}
+                          style={styles.thumbnail}
+                          resizeMode="cover"
+                          onError={() =>
+                            setImageErrors(prev => ({ ...prev, [image.id]: true }))
+                          }
+                        />
+                      ) : (
+                        <View style={styles.fallbackGraphic}>
+                          <Text style={styles.fallbackIcon}>🖼️</Text>
+                          <Text style={styles.fallbackTitle}>{image.title}</Text>
+                        </View>
+                      )}
+
                       {/* Badge */}
                       <View
                         style={[
@@ -410,6 +525,74 @@ export const ImageGalleryScreen: React.FC<ImageGalleryScreenProps> = ({ onNaviga
           </View>
         </View>
       </Modal>
+
+      {/* MODAL 3: In-App Purchase Concept & Architecture Guide */}
+      <Modal
+        visible={showIapConceptModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowIapConceptModal(false)}>
+        <View style={styles.paywallOverlay}>
+          <View style={[styles.paywallCard, { maxHeight: '85%' }]}>
+            <ScrollView showsVerticalScrollIndicator={false}>
+              <Text style={styles.iapGuideTitle}>📱 Google Play Billing Concepts</Text>
+              <Text style={styles.iapGuideIntro}>
+                How In-App Purchases, Entitlements, and Backend Verification operate:
+              </Text>
+
+              {/* Concept 1 */}
+              <View style={styles.iapConceptCard}>
+                <Text style={styles.iapConceptHeading}>1. Consumable Products (Credits)</Text>
+                <Text style={styles.iapConceptDesc}>
+                  • Repeatable purchases (100, 500, 1000 credits).
+                  {'\n'}• Flow: requestPurchase() ➔ Backend Verification ➔ consumePurchaseAndroid()
+                  ➔ Balance increments.
+                  {'\n'}• Consuming clears the purchase token so users can buy again.
+                </Text>
+              </View>
+
+              {/* Concept 2 */}
+              <View style={styles.iapConceptCard}>
+                <Text style={styles.iapConceptHeading}>2. Non-Consumable (Lifetime Premium)</Text>
+                <Text style={styles.iapConceptDesc}>
+                  • Purchased once. Permanent unlock across devices.
+                  {'\n'}• Flow: requestPurchase() ➔ Backend Verification ➔ acknowledgePurchaseAndroid()
+                  ➔ Permanent PRO entitlement.
+                  {'\n'}• Restored across app re-installs and Google account switches.
+                </Text>
+              </View>
+
+              {/* Concept 3 */}
+              <View style={styles.iapConceptCard}>
+                <Text style={styles.iapConceptHeading}>3. Subscriptions (Monthly & Yearly)</Text>
+                <Text style={styles.iapConceptDesc}>
+                  • Auto-renewing plans (Subscriptions v2 API).
+                  {'\n'}• Flow: requestSubscription() ➔ Backend Verification ➔ acknowledgePurchaseAndroid()
+                  ➔ Subscriptions v2 state ACTIVE.
+                  {'\n'}• Access active until expiry. Supports proration, cancellation, and grace periods.
+                </Text>
+              </View>
+
+              {/* Concept 4 */}
+              <View style={styles.iapConceptCard}>
+                <Text style={styles.iapConceptHeading}>4. Feature Entitlements (Zero-Trust)</Text>
+                <Text style={styles.iapConceptDesc}>
+                  • Image downloads are an entitlement, not a separate SKU.
+                  {'\n'}• Free users preview all photos and download free HD items.
+                  {'\n'}• 4K downloads require active subscription or lifetime unlock.
+                  {'\n'}• Access revokes automatically if a subscription expires or is refunded.
+                </Text>
+              </View>
+
+              <TouchableOpacity
+                style={styles.paywallUpgradeBtn}
+                onPress={() => setShowIapConceptModal(false)}>
+                <Text style={styles.paywallUpgradeBtnText}>Got it, Close Guide</Text>
+              </TouchableOpacity>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 };
@@ -466,6 +649,67 @@ const styles = StyleSheet.create({
   tierPillTextFree: {
     color: '#5F6368',
   },
+  conceptRibbon: {
+    marginTop: 12,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 10,
+    padding: 10,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  conceptInfoBtn: {
+    paddingVertical: 4,
+    marginBottom: 8,
+  },
+  conceptInfoText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#0B57D0',
+  },
+  quickManagerBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    flexWrap: 'wrap',
+  },
+  quickManagerLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#64748B',
+  },
+  quickTierBtn: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 6,
+    backgroundColor: '#F1F5F9',
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+  },
+  quickTierBtnActive: {
+    backgroundColor: '#0B57D0',
+    borderColor: '#0B57D0',
+  },
+  quickTierBtnText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#475569',
+  },
+  quickTierBtnTextActive: {
+    color: '#FFFFFF',
+  },
+  quickTierBtnExpire: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    backgroundColor: '#FEE2E2',
+    borderWidth: 1,
+    borderColor: '#FCA5A5',
+  },
+  quickTierBtnTextExpire: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#DC2626',
+  },
   filterBar: {
     paddingHorizontal: 16,
     paddingVertical: 10,
@@ -517,11 +761,29 @@ const styles = StyleSheet.create({
     width: '100%',
     height: 140,
     position: 'relative',
-    backgroundColor: '#E8EAED',
+    backgroundColor: '#1E293B',
   },
   thumbnail: {
     width: '100%',
     height: '100%',
+  },
+  fallbackGraphic: {
+    width: '100%',
+    height: '100%',
+    backgroundColor: '#334155',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 8,
+  },
+  fallbackIcon: {
+    fontSize: 32,
+    marginBottom: 4,
+  },
+  fallbackTitle: {
+    fontSize: 11,
+    color: '#FFFFFF',
+    fontWeight: '700',
+    textAlign: 'center',
   },
   badge: {
     position: 'absolute',
@@ -736,14 +998,14 @@ const styles = StyleSheet.create({
   },
   modalCloseBtn: {
     flex: 1,
-    backgroundColor: '#F1F3F4',
+    backgroundColor: '#F1F5F9',
     paddingVertical: 12,
     borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
   },
   modalCloseBtnText: {
-    color: '#444746',
+    color: '#475569',
     fontWeight: '700',
     fontSize: 13,
   },
@@ -832,5 +1094,38 @@ const styles = StyleSheet.create({
     color: '#5F6368',
     fontSize: 13,
     fontWeight: '600',
+  },
+  // Modal 3: IAP Guide
+  iapGuideTitle: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#0F172A',
+    marginBottom: 6,
+    textAlign: 'center',
+  },
+  iapGuideIntro: {
+    fontSize: 13,
+    color: '#64748B',
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  iapConceptCard: {
+    backgroundColor: '#F8FAFC',
+    borderRadius: 10,
+    padding: 14,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  iapConceptHeading: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#1E293B',
+    marginBottom: 6,
+  },
+  iapConceptDesc: {
+    fontSize: 12,
+    color: '#475569',
+    lineHeight: 18,
   },
 });
