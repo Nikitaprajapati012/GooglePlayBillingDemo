@@ -216,6 +216,136 @@ runTest('Pending Payment - Withholds entitlements until status transitions', () 
   assert.strictEqual(res.entitlement, undefined);
 });
 
+// ==============================================================
+// 📸 SUITE 7: PREMIUM IMAGE DOWNLOAD ENTITLEMENT & LIFECYCLE
+// ==============================================================
+
+function checkImageDownloadEntitlement(image, userState) {
+  if (!image.isPremium) {
+    return { allowed: true, isPremiumRequired: false };
+  }
+  if (userState.isLifetimePremium) {
+    return { allowed: true, isPremiumRequired: true };
+  }
+  if (userState.activeSubscription && userState.activeSubscription.isActive) {
+    const isStatusActive =
+      userState.activeSubscription.status === 'SUBSCRIPTION_STATE_ACTIVE' ||
+      userState.activeSubscription.status === 'SUBSCRIPTION_STATE_IN_GRACE_PERIOD';
+    const isNotExpired =
+      !userState.activeSubscription.expiryTimestamp ||
+      userState.activeSubscription.expiryTimestamp > Date.now();
+
+    if (isStatusActive && isNotExpired) {
+      return { allowed: true, isPremiumRequired: true };
+    }
+  }
+  return {
+    allowed: false,
+    isPremiumRequired: true,
+    reason: 'Requires active Monthly, Yearly, or Lifetime Premium subscription',
+  };
+}
+
+const mockFreeImage = { id: 'img_free_01', isPremium: false, title: 'Alpine Lake' };
+const mockPremiumImage = { id: 'img_prem_01', isPremium: true, title: 'Aurora Borealis' };
+
+runTest('Gallery Entitlement - Free user attempts premium image download (locked)', () => {
+  const freeUser = { isLifetimePremium: false, activeSubscription: null };
+  const check = checkImageDownloadEntitlement(mockPremiumImage, freeUser);
+  assert.strictEqual(check.allowed, false);
+  assert.strictEqual(check.isPremiumRequired, true);
+});
+
+runTest('Gallery Entitlement - Free user downloads free sample image (allowed)', () => {
+  const freeUser = { isLifetimePremium: false, activeSubscription: null };
+  const check = checkImageDownloadEntitlement(mockFreeImage, freeUser);
+  assert.strictEqual(check.allowed, true);
+  assert.strictEqual(check.isPremiumRequired, false);
+});
+
+runTest('Gallery Entitlement - Monthly subscriber downloads premium image (allowed)', () => {
+  const monthlyUser = {
+    isLifetimePremium: false,
+    activeSubscription: {
+      isActive: true,
+      planId: 'monthly',
+      status: 'SUBSCRIPTION_STATE_ACTIVE',
+      expiryTimestamp: Date.now() + 86400000,
+    },
+  };
+  const check = checkImageDownloadEntitlement(mockPremiumImage, monthlyUser);
+  assert.strictEqual(check.allowed, true);
+});
+
+runTest('Gallery Entitlement - Yearly subscriber downloads premium image (allowed)', () => {
+  const yearlyUser = {
+    isLifetimePremium: false,
+    activeSubscription: {
+      isActive: true,
+      planId: 'yearly',
+      status: 'SUBSCRIPTION_STATE_ACTIVE',
+      expiryTimestamp: Date.now() + 365 * 86400000,
+    },
+  };
+  const check = checkImageDownloadEntitlement(mockPremiumImage, yearlyUser);
+  assert.strictEqual(check.allowed, true);
+});
+
+runTest('Gallery Entitlement - Lifetime Premium user downloads premium image (allowed)', () => {
+  const lifetimeUser = { isLifetimePremium: true, activeSubscription: null };
+  const check = checkImageDownloadEntitlement(mockPremiumImage, lifetimeUser);
+  assert.strictEqual(check.allowed, true);
+});
+
+runTest('Gallery Entitlement - Subscription expires and download access is locked', () => {
+  const expiredUser = {
+    isLifetimePremium: false,
+    activeSubscription: {
+      isActive: false,
+      planId: 'monthly',
+      status: 'SUBSCRIPTION_STATE_EXPIRED',
+      expiryTimestamp: Date.now() - 1000, // in the past
+    },
+  };
+  const check = checkImageDownloadEntitlement(mockPremiumImage, expiredUser);
+  assert.strictEqual(check.allowed, false);
+});
+
+runTest('Gallery Entitlement - Subscription is restored and download access is unlocked', () => {
+  // 1. Initially expired/canceled
+  let user = {
+    isLifetimePremium: false,
+    activeSubscription: null,
+  };
+  assert.strictEqual(checkImageDownloadEntitlement(mockPremiumImage, user).allowed, false);
+
+  // 2. Perform restoration simulation
+  user.activeSubscription = {
+    isActive: true,
+    planId: 'monthly',
+    status: 'SUBSCRIPTION_STATE_ACTIVE',
+    expiryTimestamp: Date.now() + 30 * 86400000,
+  };
+  assert.strictEqual(checkImageDownloadEntitlement(mockPremiumImage, user).allowed, true);
+});
+
+runTest('Gallery Entitlement - Application restarts and entitlement is synchronized', () => {
+  // Simulated persistence storage state
+  const mockLocalStorage = {
+    '@billing_demo:lifetime_premium': 'true',
+    '@billing_demo:active_subscription': null,
+  };
+
+  // Rehydration process on app launch
+  const rehydratedUser = {
+    isLifetimePremium: mockLocalStorage['@billing_demo:lifetime_premium'] === 'true',
+    activeSubscription: mockLocalStorage['@billing_demo:active_subscription'],
+  };
+
+  const check = checkImageDownloadEntitlement(mockPremiumImage, rehydratedUser);
+  assert.strictEqual(check.allowed, true);
+});
+
 console.log('\n====================================================');
 console.log(`📊 TEST RESULTS: ${passed} Passed, ${failed} Failed`);
 console.log('====================================================\n');

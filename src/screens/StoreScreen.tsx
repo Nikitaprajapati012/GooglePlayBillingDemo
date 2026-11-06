@@ -124,6 +124,11 @@ export const StoreScreen: React.FC = () => {
               <Text style={styles.featuredPrice}>{lifetime.defaultPrice}</Text>
             </View>
             <Text style={styles.cardDescription}>{lifetime.description}</Text>
+            <View style={styles.perksList}>
+              <Text style={styles.perkItem}>✓ Unlimited 4K Ultra-HD Image Downloads</Text>
+              <Text style={styles.perkItem}>✓ Permanent Lifetime Access Across All Devices</Text>
+              <Text style={styles.perkItem}>✓ Zero Ads & Premium Priority Processing</Text>
+            </View>
 
             <TouchableOpacity
               style={[
@@ -178,6 +183,14 @@ export const StoreScreen: React.FC = () => {
                 </View>
 
                 <Text style={styles.cardDescription}>{sub.description}</Text>
+                <View style={styles.perksList}>
+                  <Text style={styles.perkItem}>
+                    {planKey === 'yearly'
+                      ? '✓ Unlimited 4K Ultra-HD Image Downloads (Save ~37%)'
+                      : '✓ Unlimited 4K Ultra-HD Image Downloads'}
+                  </Text>
+                  <Text style={styles.perkItem}>✓ Instant Entitlement Verification</Text>
+                </View>
 
                 <TouchableOpacity
                   style={[
@@ -348,5 +361,14 @@ const styles = StyleSheet.create({
     color: '#059669',
     marginTop: 2,
     letterSpacing: 0.5,
+  },
+  perksList: {
+    marginBottom: 14,
+    gap: 4,
+  },
+  perkItem: {
+    fontSize: 12,
+    color: '#0B57D0',
+    fontWeight: '600',
   },
 });

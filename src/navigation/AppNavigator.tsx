@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, SafeAreaView } from 'react-native';
 import { HomeScreen } from '../screens/HomeScreen';
+import { ImageGalleryScreen } from '../screens/ImageGalleryScreen';
 import { StoreScreen } from '../screens/StoreScreen';
 import { HistoryScreen } from '../screens/HistoryScreen';
 import { useUser } from '../context/UserContext';
 
-type TabName = 'home' | 'store' | 'history';
+type TabName = 'home' | 'gallery' | 'store' | 'history';
 
 export const AppNavigator: React.FC = () => {
   const [currentTab, setCurrentTab] = useState<TabName>('home');
@@ -18,14 +19,23 @@ export const AppNavigator: React.FC = () => {
           <HomeScreen
             onNavigateToStore={() => setCurrentTab('store')}
             onNavigateToHistory={() => setCurrentTab('history')}
+            onNavigateToGallery={() => setCurrentTab('gallery')}
           />
         );
+      case 'gallery':
+        return <ImageGalleryScreen onNavigateToStore={() => setCurrentTab('store')} />;
       case 'store':
         return <StoreScreen />;
       case 'history':
         return <HistoryScreen />;
       default:
-        return <HomeScreen onNavigateToStore={() => setCurrentTab('store')} onNavigateToHistory={() => setCurrentTab('history')} />;
+        return (
+          <HomeScreen
+            onNavigateToStore={() => setCurrentTab('store')}
+            onNavigateToHistory={() => setCurrentTab('history')}
+            onNavigateToGallery={() => setCurrentTab('gallery')}
+          />
+        );
     }
   };
 
@@ -65,6 +75,17 @@ export const AppNavigator: React.FC = () => {
           </Text>
           <Text style={[styles.navText, currentTab === 'home' && styles.navTextActive]}>
             Home
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.navItem, currentTab === 'gallery' && styles.navItemActive]}
+          onPress={() => setCurrentTab('gallery')}>
+          <Text style={[styles.navIcon, currentTab === 'gallery' && styles.navTextActive]}>
+            🖼️
+          </Text>
+          <Text style={[styles.navText, currentTab === 'gallery' && styles.navTextActive]}>
+            Gallery
           </Text>
         </TouchableOpacity>
 

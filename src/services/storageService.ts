@@ -7,6 +7,7 @@ const STORAGE_KEYS = {
   ACTIVE_SUBSCRIPTION: '@billing_demo:active_subscription',
   TRANSACTION_HISTORY: '@billing_demo:transaction_history',
   PROCESSED_TOKENS: '@billing_demo:processed_tokens',
+  DOWNLOADED_IMAGES: '@billing_demo:downloaded_images',
 };
 
 export const StorageService = {
@@ -113,6 +114,37 @@ export const StorageService = {
     }
   },
 
+  // Downloaded Images
+  async getDownloadedImages(): Promise<string[]> {
+    try {
+      const val = await AsyncStorage.getItem(STORAGE_KEYS.DOWNLOADED_IMAGES);
+      return val ? JSON.parse(val) : [];
+    } catch {
+      return [];
+    }
+  },
+
+  async recordDownloadedImage(imageId: string): Promise<void> {
+    try {
+      const list = await this.getDownloadedImages();
+      if (!list.includes(imageId)) {
+        list.push(imageId);
+        await AsyncStorage.setItem(STORAGE_KEYS.DOWNLOADED_IMAGES, JSON.stringify(list));
+      }
+    } catch (e) {
+      console.error('Failed to record downloaded image', e);
+    }
+  },
+
+  async isImageDownloaded(imageId: string): Promise<boolean> {
+    try {
+      const list = await this.getDownloadedImages();
+      return list.includes(imageId);
+    } catch {
+      return false;
+    }
+  },
+
   // Reset for Demo testing
   async clearAllData(): Promise<void> {
     try {
@@ -122,6 +154,7 @@ export const StorageService = {
         STORAGE_KEYS.ACTIVE_SUBSCRIPTION,
         STORAGE_KEYS.TRANSACTION_HISTORY,
         STORAGE_KEYS.PROCESSED_TOKENS,
+        STORAGE_KEYS.DOWNLOADED_IMAGES,
       ]);
     } catch (e) {
       console.error('Failed to clear storage data', e);

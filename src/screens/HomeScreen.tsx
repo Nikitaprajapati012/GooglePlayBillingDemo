@@ -15,11 +15,13 @@ import { useBilling } from '../context/BillingContext';
 interface HomeScreenProps {
   onNavigateToStore: () => void;
   onNavigateToHistory: () => void;
+  onNavigateToGallery?: () => void;
 }
 
 export const HomeScreen: React.FC<HomeScreenProps> = ({
   onNavigateToStore,
   onNavigateToHistory,
+  onNavigateToGallery,
 }) => {
   const {
     credits,
@@ -159,6 +161,26 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
             </View>
           </View>
         </View>
+      </View>
+
+      {/* Featured: Image Gallery Showcase */}
+      <View style={styles.galleryFeatureCard}>
+        <View style={styles.galleryCardHeader}>
+          <Text style={styles.galleryCardIcon}>🖼️</Text>
+          <View style={{ flex: 1, marginLeft: 10 }}>
+            <Text style={styles.galleryCardTitle}>Premium Image Gallery</Text>
+            <Text style={styles.galleryCardSubtitle}>
+              {hasAnyPremium
+                ? '⭐ PRO Unlocked: Unlimited 4K Ultra-HD Downloads'
+                : '🔒 Free Tier: Upgrade to unlock 4K Ultra-HD Downloads'}
+            </Text>
+          </View>
+        </View>
+        <TouchableOpacity
+          style={styles.galleryCardBtn}
+          onPress={onNavigateToGallery}>
+          <Text style={styles.galleryCardBtnText}>Explore Gallery & Wallpapers ➔</Text>
+        </TouchableOpacity>
       </View>
 
       {/* Navigation Shortcuts */}
@@ -473,5 +495,47 @@ const styles = StyleSheet.create({
     color: '#DC2626',
     fontSize: 13,
     fontWeight: '600',
+  },
+  galleryFeatureCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: '#E0E2E6',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOpacity: 0.05,
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 4,
+  },
+  galleryCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  galleryCardIcon: {
+    fontSize: 28,
+  },
+  galleryCardTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#1F1F1F',
+  },
+  galleryCardSubtitle: {
+    fontSize: 12,
+    color: '#5F6368',
+    marginTop: 2,
+  },
+  galleryCardBtn: {
+    backgroundColor: '#0B57D0',
+    paddingVertical: 10,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  galleryCardBtnText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '700',
   },
 });
