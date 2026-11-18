@@ -18,8 +18,8 @@
 const http = require('http');
 
 const PORT = process.env.PORT || 3000;
-const APP_PACKAGE_NAME = 'com.ecosmob.ncag';
-const ALLOWED_PACKAGE_NAMES = ['com.ecosmob.ncag', 'com.playbillingdemo'];
+const APP_PACKAGE_NAME = 'com.ecosmob.playbillingdemo';
+const ALLOWED_PACKAGE_NAMES = ['com.ecosmob.playbillingdemo', 'com.ecosmob.ncag', 'com.playbillingdemo'];
 
 // In-Memory Idempotency & Transaction Ledger
 // Schema per Manager's spec:

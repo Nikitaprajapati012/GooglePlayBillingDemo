@@ -19,11 +19,11 @@ android {
 
     namespace "com.playbillingdemo"
     defaultConfig {
-        applicationId "com.ecosmob.ncag"
+        applicationId "com.ecosmob.playbillingdemo"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 247
-        versionName "5.14.0"
+        versionCode 1
+        versionName "1.0.0"
         missingDimensionStrategy "store", "play"
     }
 
