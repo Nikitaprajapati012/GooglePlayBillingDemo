@@ -50,6 +50,8 @@ export const BillingProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [purchaseInProgress, setPurchaseInProgress] = useState<boolean>(false);
   const playSubscriptionsRef = useRef<any[]>([]);
+  const lastAttemptedProductIdRef = useRef<string>('');
+  const lastAttemptedFallbackRef = useRef<(() => Promise<void>) | null>(null);
   const [products, setProducts] = useState<ProductCatalogItem[]>(PRODUCT_CATALOG);
   const [isSandboxSimulatorActive, setSandboxSimulatorActive] = useState<boolean>(false);
 
@@ -259,6 +261,52 @@ export const BillingProvider: React.FC<{ children: React.ReactNode }> = ({ child
   );
 
   /**
+   * Helper to handle purchase errors with intelligent guidance
+   */
+  const handlePurchaseError = useCallback(
+    (err: any, productId: string, onSimulateFallback?: () => Promise<void>) => {
+      setPurchaseInProgress(false);
+      if (err.code === 'E_USER_CANCELLED' || err.code === RNIap.ErrorCode.E_USER_CANCELLED) {
+        return;
+      }
+
+      const isSkuNotFound =
+        err.message?.includes('sku was not found') ||
+        err.message?.includes('getItems') ||
+        err.message?.includes('ITEM_UNAVAILABLE');
+
+      if (isSkuNotFound) {
+        Alert.alert(
+          'Google Play Product Pending Activation',
+          `Google Play has not yet replicated product '${productId}' in your regional store cache.
+
+Causes:
+1. Product was recently created/activated in Play Console and needs propagation time.
+2. Device Play Store cache is pending sync.
+
+💡 Would you like to use "Sandbox Simulator" to complete the purchase, verification, and balance update right now?`,
+          [
+            { text: 'Cancel', style: 'cancel' },
+            {
+              text: 'Enable Simulator & Buy',
+              onPress: async () => {
+                setSandboxSimulatorActive(true);
+                const fallback = onSimulateFallback || lastAttemptedFallbackRef.current;
+                if (fallback) {
+                  await fallback();
+                }
+              },
+            },
+          ]
+        );
+      } else {
+        Alert.alert('Payment Incomplete', err.message || 'Unable to complete purchase.');
+      }
+    },
+    []
+  );
+
+  /**
    * Initialize BillingClient & Register Listeners
    */
   useEffect(() => {
@@ -319,8 +367,21 @@ export const BillingProvider: React.FC<{ children: React.ReactNode }> = ({ child
           console.warn('[Billing Engine] purchaseErrorListener:', error);
           setPurchaseInProgress(false);
           if (error.code === RNIap.ErrorCode.E_USER_CANCELLED) {
-            // Fulfills: User cancels payment (clean exit without loud error alert)
             console.log('[Billing Engine] User canceled payment.');
+            return;
+          }
+
+          const isSkuNotFound =
+            error.message?.includes('sku was not found') ||
+            error.message?.includes('getItems') ||
+            error.message?.includes('ITEM_UNAVAILABLE');
+
+          if (isSkuNotFound && lastAttemptedFallbackRef.current) {
+            handlePurchaseError(
+              error,
+              lastAttemptedProductIdRef.current || 'selected product',
+              lastAttemptedFallbackRef.current
+            );
           } else {
             Alert.alert('Payment Incomplete', error.message || 'Payment was not completed.');
           }
@@ -330,7 +391,6 @@ export const BillingProvider: React.FC<{ children: React.ReactNode }> = ({ child
         await recoverInterruptedPurchases();
       } catch (err) {
         console.warn('[Billing Engine] initConnection notice:', err);
-        // Fallback to sandbox simulation mode if Play Services are not available on test device
         setIsInitialized(true);
       } finally {
         setIsLoading(false);
@@ -348,7 +408,7 @@ export const BillingProvider: React.FC<{ children: React.ReactNode }> = ({ child
       }
       RNIap.endConnection();
     };
-  }, [processPurchaseToken]);
+  }, [processPurchaseToken, handlePurchaseError]);
 
   /**
    * Recovers purchases after application restart or if app was killed mid-purchase
@@ -369,55 +429,11 @@ export const BillingProvider: React.FC<{ children: React.ReactNode }> = ({ child
   };
 
   /**
-   * Helper to handle purchase errors with intelligent guidance
-   */
-  const handlePurchaseError = (
-    err: any,
-    productId: string,
-    onSimulateFallback: () => Promise<void>
-  ) => {
-    setPurchaseInProgress(false);
-    if (err.code === 'E_USER_CANCELLED' || err.code === RNIap.ErrorCode.E_USER_CANCELLED) {
-      return;
-    }
-
-    const isSkuNotFound =
-      err.message?.includes('sku was not found') ||
-      err.message?.includes('getItems') ||
-      err.message?.includes('ITEM_UNAVAILABLE');
-
-    if (isSkuNotFound) {
-      Alert.alert(
-        'Google Play SKU Not Found',
-        `Google Play did not find product '${productId}'.
-
-Causes:
-1. Product is not set to "Active" in Play Console.
-2. Tester Gmail is not added under Setup > License Testing.
-3. Internal test track invite wasn't accepted on this device.
-
-💡 Would you like to enable "Simulated Mode" to test the purchase, verification, and credit flow right now?`,
-        [
-          { text: 'Cancel', style: 'cancel' },
-          {
-            text: 'Enable Simulator & Buy',
-            onPress: async () => {
-              setSandboxSimulatorActive(true);
-              await onSimulateFallback();
-            },
-          },
-        ]
-      );
-    } else {
-      Alert.alert('Purchase Error', err.message || 'Unable to launch billing flow.');
-    }
-  };
-
-  /**
    * Buy Consumable (Credits)
    */
   const buyConsumable = async (productId: string) => {
     setPurchaseInProgress(true);
+    lastAttemptedProductIdRef.current = productId;
     const triggerSimulated = async () => {
       const mockPurchase: RNIap.Purchase = {
         productId,
@@ -429,6 +445,7 @@ Causes:
       await processPurchaseToken(mockPurchase);
       setPurchaseInProgress(false);
     };
+    lastAttemptedFallbackRef.current = triggerSimulated;
 
     try {
       if (isSandboxSimulatorActive) {
@@ -451,6 +468,7 @@ Causes:
   const buyLifetimePremium = async () => {
     setPurchaseInProgress(true);
     const productId = 'premium_lifetime';
+    lastAttemptedProductIdRef.current = productId;
     const triggerSimulated = async () => {
       const mockPurchase: RNIap.Purchase = {
         productId,
@@ -462,6 +480,7 @@ Causes:
       await processPurchaseToken(mockPurchase);
       setPurchaseInProgress(false);
     };
+    lastAttemptedFallbackRef.current = triggerSimulated;
 
     try {
       if (isSandboxSimulatorActive) {
@@ -489,6 +508,7 @@ Causes:
     setPurchaseInProgress(true);
     const subSku = 'premium_subscription';
     const fullProductId = `${subSku}:${planId}-plan`;
+    lastAttemptedProductIdRef.current = fullProductId;
     const triggerSimulated = async () => {
       const mockPurchase: RNIap.Purchase = {
         productId: fullProductId,
@@ -500,6 +520,7 @@ Causes:
       await processPurchaseToken(mockPurchase);
       setPurchaseInProgress(false);
     };
+    lastAttemptedFallbackRef.current = triggerSimulated;
 
     try {
       if (isSandboxSimulatorActive) {
