@@ -27,7 +27,7 @@ The application strictly implements a **Zero-Trust Client Model**:
   1. The app receives the purchase event from `purchaseUpdatedListener`.
   2. The raw `purchaseToken`, `orderId`, and `productId` are passed to the **Verification Layer** (`VerificationService`).
   3. The verification layer simulates Google Play Developer APIs (`purchases.products.get` and `purchases.subscriptionsv2.get`).
-  4. It performs **Package Name validation** (`com.playbillingdemo`), checks token integrity, and evaluates the **Idempotency Ledger**.
+  4. It performs **Package Name validation** (`com.ecosmob.playbillingdemo`), checks token integrity, and evaluates the **Idempotency Ledger**.
   5. Entitlements are only granted if the backend confirms `purchaseState === 0` (`PURCHASED`).
 
 ```
@@ -168,8 +168,16 @@ Running `node test-runner.js`:
   ✅ PASS: Subscriptions - Verifies monthly and yearly plans
   ✅ PASS: Idempotency - Replay attack with same token is rejected
   ✅ PASS: Pending Payment - Withholds entitlements until status transitions
+  ✅ PASS: Gallery Entitlement - Free user attempts premium image download (locked)
+  ✅ PASS: Gallery Entitlement - Free user downloads free sample image (allowed)
+  ✅ PASS: Gallery Entitlement - Monthly subscriber downloads premium image (allowed)
+  ✅ PASS: Gallery Entitlement - Yearly subscriber downloads premium image (allowed)
+  ✅ PASS: Gallery Entitlement - Lifetime Premium user downloads premium image (allowed)
+  ✅ PASS: Gallery Entitlement - Subscription expires and download access is locked
+  ✅ PASS: Gallery Entitlement - Subscription is restored and download access is unlocked
+  ✅ PASS: Gallery Entitlement - Application restarts and entitlement is synchronized
 
 ====================================================
-📊 TEST RESULTS: 7 Passed, 0 Failed
+📊 TEST RESULTS: 15 Passed, 0 Failed
 ====================================================
 ```

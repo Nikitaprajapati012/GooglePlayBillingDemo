@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
+import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
 import { Platform, Alert } from 'react-native';
 import * as RNIap from 'react-native-iap';
 import {
@@ -49,6 +49,7 @@ export const BillingProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [isInitialized, setIsInitialized] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [purchaseInProgress, setPurchaseInProgress] = useState<boolean>(false);
+  const playSubscriptionsRef = useRef<any[]>([]);
   const [products, setProducts] = useState<ProductCatalogItem[]>(PRODUCT_CATALOG);
   const [isSandboxSimulatorActive, setSandboxSimulatorActive] = useState<boolean>(false);
 
@@ -281,6 +282,7 @@ export const BillingProvider: React.FC<{ children: React.ReactNode }> = ({ child
           try {
             playSubs = await RNIap.getSubscriptions({ skus: [...SUBSCRIPTION_SKUS] });
             console.log('[Billing Engine] Loaded subscriptions from Google Play:', playSubs.length);
+            playSubscriptionsRef.current = playSubs || [];
           } catch (subErr) {
             console.log('[Billing Engine] Subscriptions fetch notice:', subErr);
           }
@@ -513,12 +515,27 @@ Causes:
           }
         : {};
 
+      const subObj = playSubscriptionsRef.current.find((s: any) => s.productId === subSku);
+      const offerDetails: any[] = (subObj as any)?.subscriptionOfferDetails || [];
+      const matchingOffer =
+        offerDetails.find((o: any) => o.basePlanId === planId) ||
+        offerDetails.find((o: any) => (o.offerId || o.basePlanId || '').includes(planId)) ||
+        offerDetails[0];
+
+      const realOfferToken = matchingOffer?.offerToken;
+
+      if (!realOfferToken) {
+        console.log(`[Billing Engine] No real offerToken found for plan '${planId}', using sandbox simulator.`);
+        await triggerSimulated();
+        return;
+      }
+
       await RNIap.requestSubscription({
         sku: subSku,
         subscriptionOffers: [
           {
             sku: subSku,
-            offerToken: `${planId}-offer-token`,
+            offerToken: realOfferToken,
           },
         ],
         ...prorationOptions,
