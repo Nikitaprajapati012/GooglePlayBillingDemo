@@ -22,10 +22,11 @@ local.properties
 *.apk
 *.aab
 
-# Keystores (keep debug.keystore if needed for React Native local run)
+# Keystores (keep debug.keystore & release.keystore for demo builds)
 *.jks
 *.keystore
 !android/app/debug.keystore
+!android/app/release.keystore
 
 # IDE / Editors
 .idea/
