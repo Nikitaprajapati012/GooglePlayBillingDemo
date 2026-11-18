@@ -18,7 +18,8 @@
 const http = require('http');
 
 const PORT = process.env.PORT || 3000;
-const APP_PACKAGE_NAME = 'com.playbillingdemo';
+const APP_PACKAGE_NAME = 'com.ecosmob.ncag';
+const ALLOWED_PACKAGE_NAMES = ['com.ecosmob.ncag', 'com.playbillingdemo'];
 
 // In-Memory Idempotency & Transaction Ledger
 // Schema per Manager's spec:
@@ -136,12 +137,12 @@ const server = http.createServer(async (req, res) => {
 
       console.log(`[Mock Server] Verifying token for product ${productId}...`);
 
-      if (packageName && packageName !== APP_PACKAGE_NAME) {
+      if (packageName && !ALLOWED_PACKAGE_NAMES.includes(packageName)) {
         sendJson(res, 400, {
           success: false,
           verified: false,
           error: 'INVALID_PACKAGE_NAME',
-          message: `Package mismatch. Expected ${APP_PACKAGE_NAME}, got ${packageName}`,
+          message: `Package mismatch. Expected one of ${ALLOWED_PACKAGE_NAMES.join(', ')}, got ${packageName}`,
         });
         return;
       }

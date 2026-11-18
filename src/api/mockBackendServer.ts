@@ -44,7 +44,7 @@ export const MockBackendServer = {
     await new Promise(resolve => setTimeout(resolve, 500));
 
     // 2. Validate Package Name
-    if (req.packageName && req.packageName !== APP_PACKAGE_NAME) {
+    if (req.packageName && req.packageName !== APP_PACKAGE_NAME && req.packageName !== 'com.playbillingdemo') {
       return {
         success: false,
         verified: false,

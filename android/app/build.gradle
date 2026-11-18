@@ -19,11 +19,11 @@ android {
 
     namespace "com.playbillingdemo"
     defaultConfig {
-        applicationId "com.playbillingdemo"
+        applicationId "com.ecosmob.ncag"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1
-        versionName "1.0"
+        versionCode 247
+        versionName "5.14.0"
         missingDimensionStrategy "store", "play"
     }
 
@@ -53,7 +53,7 @@ dependencies {
     implementation("com.facebook.react:hermes-android")
 
     implementation project(':react-native-iap')
-    implementation project(':@react-native-async-storage_async-storage')
+    implementation project(':react-native-async-storage_async-storage')
     implementation project(':react-native-safe-area-context')
 
     // Google Play Billing

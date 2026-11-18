@@ -1,6 +1,6 @@
 import { ProductCatalogItem } from '../types/billing';
 
-export const APP_PACKAGE_NAME = 'com.playbillingdemo';
+export const APP_PACKAGE_NAME = 'com.ecosmob.ncag';
 
 /**
  * Product SKUs for Google Play Console In-App Products
