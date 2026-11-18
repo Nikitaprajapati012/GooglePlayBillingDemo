@@ -270,21 +270,29 @@ export const BillingProvider: React.FC<{ children: React.ReactNode }> = ({ child
         return;
       }
 
-      const isSkuNotFound =
-        err.message?.includes('sku was not found') ||
-        err.message?.includes('getItems') ||
-        err.message?.includes('ITEM_UNAVAILABLE');
+      const msg = (err.message || '').toLowerCase();
+      const code = (err.code || '').toLowerCase();
+      const debugMsg = (err.debugMessage || '').toLowerCase();
 
-      if (isSkuNotFound) {
+      const isRecoverableError =
+        msg.includes('sku') ||
+        msg.includes('getitems') ||
+        msg.includes('unavailable') ||
+        msg.includes('network') ||
+        msg.includes('internet') ||
+        msg.includes('service') ||
+        msg.includes('not found') ||
+        code.includes('unavailable') ||
+        code.includes('promise_buy_item') ||
+        code.includes('network') ||
+        debugMsg.includes('sku') ||
+        debugMsg.includes('unavailable') ||
+        (err as any).responseCode === 4;
+
+      if (isRecoverableError || onSimulateFallback || lastAttemptedFallbackRef.current) {
         Alert.alert(
           'Google Play Product Pending Activation',
-          `Google Play has not yet replicated product '${productId}' in your regional store cache.
-
-Causes:
-1. Product was recently created/activated in Play Console and needs propagation time.
-2. Device Play Store cache is pending sync.
-
-💡 Would you like to use "Sandbox Simulator" to complete the purchase, verification, and balance update right now?`,
+          `Google Play has not yet replicated product '${productId}' in your regional store cache (or network was interrupted).\n\nCauses:\n1. Product newly created in Play Console and still propagating.\n2. Device Play Store cache is pending sync.\n\n💡 Would you like to use "Sandbox Simulator" to complete the purchase, verification, and balance update right now?`,
           [
             { text: 'Cancel', style: 'cancel' },
             {
@@ -366,25 +374,16 @@ Causes:
         purchaseErrorSubscription = RNIap.purchaseErrorListener((error: RNIap.PurchaseError) => {
           console.warn('[Billing Engine] purchaseErrorListener:', error);
           setPurchaseInProgress(false);
-          if (error.code === RNIap.ErrorCode.E_USER_CANCELLED) {
+          if (error.code === RNIap.ErrorCode.E_USER_CANCELLED || error.code === 'E_USER_CANCELLED') {
             console.log('[Billing Engine] User canceled payment.');
             return;
           }
 
-          const isSkuNotFound =
-            error.message?.includes('sku was not found') ||
-            error.message?.includes('getItems') ||
-            error.message?.includes('ITEM_UNAVAILABLE');
-
-          if (isSkuNotFound && lastAttemptedFallbackRef.current) {
-            handlePurchaseError(
-              error,
-              lastAttemptedProductIdRef.current || 'selected product',
-              lastAttemptedFallbackRef.current
-            );
-          } else {
-            Alert.alert('Payment Incomplete', error.message || 'Payment was not completed.');
-          }
+          handlePurchaseError(
+            error,
+            lastAttemptedProductIdRef.current || 'selected product',
+            lastAttemptedFallbackRef.current
+          );
         });
 
         // Check for Interrupted Purchases (App killed during purchase / offline recovery)

@@ -15,6 +15,8 @@ export const StoreScreen: React.FC = () => {
   const {
     products,
     purchaseInProgress,
+    isSandboxSimulatorActive,
+    setSandboxSimulatorActive,
     buyConsumable,
     buyLifetimePremium,
     subscribePlan,
@@ -65,6 +67,27 @@ export const StoreScreen: React.FC = () => {
         <Text style={styles.headerSubtitle}>
           Google Play Billing sandbox products. All prices fetched from Play Store.
         </Text>
+      </View>
+
+      {/* Sandbox Simulator Status & Toggle */}
+      <View style={[styles.simBanner, isSandboxSimulatorActive && styles.simBannerActive]}>
+        <View style={{ flex: 1, paddingRight: 10 }}>
+          <Text style={[styles.simBannerTitle, isSandboxSimulatorActive && styles.simBannerTitleActive]}>
+            {isSandboxSimulatorActive ? '🧪 Sandbox Simulator: ON' : '🌐 Google Play Store: LIVE'}
+          </Text>
+          <Text style={styles.simBannerSubtitle}>
+            {isSandboxSimulatorActive
+              ? 'Zero-Trust Mock Backend Active. Instant purchase testing.'
+              : 'Testing directly against Play Console test track & license testers.'}
+          </Text>
+        </View>
+        <TouchableOpacity
+          style={[styles.simBannerBtn, isSandboxSimulatorActive && styles.simBannerBtnActive]}
+          onPress={() => setSandboxSimulatorActive(!isSandboxSimulatorActive)}>
+          <Text style={[styles.simBannerBtnText, isSandboxSimulatorActive && styles.simBannerBtnTextActive]}>
+            {isSandboxSimulatorActive ? 'Use Play' : 'Simulate'}
+          </Text>
+        </TouchableOpacity>
       </View>
 
       {/* SECTION 1: CONSUMABLE CREDITS */}
@@ -231,7 +254,53 @@ const styles = StyleSheet.create({
     paddingBottom: 40,
   },
   header: {
+    marginBottom: 14,
+  },
+  simBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#EFF6FF',
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
+    borderRadius: 10,
+    padding: 12,
     marginBottom: 20,
+  },
+  simBannerActive: {
+    backgroundColor: '#F0FDF4',
+    borderColor: '#86EFAC',
+  },
+  simBannerTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#1E40AF',
+  },
+  simBannerTitleActive: {
+    color: '#166534',
+  },
+  simBannerSubtitle: {
+    fontSize: 11,
+    color: '#64748B',
+    marginTop: 2,
+    lineHeight: 15,
+  },
+  simBannerBtn: {
+    backgroundColor: '#3B82F6',
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 6,
+  },
+  simBannerBtnActive: {
+    backgroundColor: '#16A34A',
+  },
+  simBannerBtnText: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+    fontSize: 12,
+  },
+  simBannerBtnTextActive: {
+    color: '#FFFFFF',
   },
   headerTitle: {
     fontSize: 26,
