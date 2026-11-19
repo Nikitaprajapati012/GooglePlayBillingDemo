@@ -488,7 +488,11 @@ export const BillingProvider: React.FC<{ children: React.ReactNode }> = ({ child
    */
   const buyLifetimePremium = async () => {
     setPurchaseInProgress(true);
-    const productId = 'premium_lifetime';
+    // Dynamically resolve whichever SKU Google Play returned: 'lifetime_premium' or 'premium_lifetime'
+    const matchingPlayItem = playProductsRef.current.find(
+      (p: any) => p.productId === 'lifetime_premium' || p.productId === 'premium_lifetime'
+    );
+    const productId = matchingPlayItem ? matchingPlayItem.productId : 'lifetime_premium';
     lastAttemptedProductIdRef.current = productId;
     const triggerSimulated = async () => {
       const mockPurchase: RNIap.Purchase = {
@@ -509,7 +513,7 @@ export const BillingProvider: React.FC<{ children: React.ReactNode }> = ({ child
         return;
       }
 
-      const isLoadedInPlay = playProductsRef.current.some((p: any) => p.productId === 'premium_lifetime' || p.productId === 'lifetime_premium');
+      const isLoadedInPlay = Boolean(matchingPlayItem) || playProductsRef.current.some((p: any) => p.productId === 'premium_lifetime' || p.productId === 'lifetime_premium');
       if (!isLoadedInPlay) {
         Alert.alert(
           'Google Play Sandbox Notice',
@@ -578,16 +582,19 @@ export const BillingProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
       const subObj =
         playSubscriptionsRef.current.find((s: any) => s.productId === subSku) ||
-        playSubscriptionsRef.current.find((s: any) => s.productId === `${planId}_premium` || s.productId.includes(planId));
+        playSubscriptionsRef.current.find((s: any) => s.productId === `${planId}_premium` || s.productId.includes(planId)) ||
+        playSubscriptionsRef.current[0];
 
+      const actualSubSku = subObj?.productId || subSku;
       const offerDetails: any[] = (subObj as any)?.subscriptionOfferDetails || [];
-      console.log(`[Billing Engine] subscribePlan '${planId}' - total offers found:`, offerDetails.length);
+      console.log(`[Billing Engine] subscribePlan '${planId}' - target sku: ${actualSubSku}, total offers found:`, offerDetails.length);
       console.log(`[Billing Engine] subscribePlan offers:`, JSON.stringify(offerDetails));
       
       const matchingOffer =
         offerDetails.find((o: any) => o.basePlanId === planId) ||
         offerDetails.find((o: any) => (o.offerId || o.basePlanId || '').toLowerCase().includes(planId)) ||
-        offerDetails.find((o: any) => o.basePlanId?.toLowerCase().startsWith(planId.substring(0, 3)));
+        offerDetails.find((o: any) => o.basePlanId?.toLowerCase().startsWith(planId.substring(0, 3))) ||
+        offerDetails[0];
 
       const realOfferToken = matchingOffer?.offerToken;
       console.log(`[Billing Engine] subscribePlan selected offerToken:`, realOfferToken);
@@ -616,10 +623,10 @@ export const BillingProvider: React.FC<{ children: React.ReactNode }> = ({ child
       }
 
       await RNIap.requestSubscription({
-        sku: subSku,
+        sku: actualSubSku,
         subscriptionOffers: [
           {
-            sku: subSku,
+            sku: actualSubSku,
             offerToken: realOfferToken,
           },
         ],

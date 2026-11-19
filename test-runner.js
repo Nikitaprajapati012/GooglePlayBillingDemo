@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 /**
  * Zero-Dependency Test Suite Runner for Google Play Billing Demo
  * Run: node test-runner.js
