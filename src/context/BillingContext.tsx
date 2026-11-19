@@ -50,10 +50,11 @@ export const BillingProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [purchaseInProgress, setPurchaseInProgress] = useState<boolean>(false);
   const playSubscriptionsRef = useRef<any[]>([]);
+  const playProductsRef = useRef<any[]>([]);
   const lastAttemptedProductIdRef = useRef<string>('');
   const lastAttemptedFallbackRef = useRef<(() => Promise<void>) | null>(null);
   const [products, setProducts] = useState<ProductCatalogItem[]>(PRODUCT_CATALOG);
-  const [isSandboxSimulatorActive, setSandboxSimulatorActive] = useState<boolean>(false);
+  const [isSandboxSimulatorActive, setSandboxSimulatorActive] = useState<boolean>(true);
 
   /**
    * Secure Verification & Fulfillment Pipeline
@@ -333,11 +334,13 @@ export const BillingProvider: React.FC<{ children: React.ReactNode }> = ({ child
           const skus = [...CONSUMABLE_PRODUCT_SKUS, ...NON_CONSUMABLE_PRODUCT_SKUS];
           const playProducts = await RNIap.getProducts({ skus });
           console.log('[Billing Engine] Loaded products from Google Play:', playProducts.length);
+          playProductsRef.current = playProducts || [];
 
           let playSubs: any[] = [];
           try {
             playSubs = await RNIap.getSubscriptions({ skus: [...SUBSCRIPTION_SKUS] });
-            console.log('[Billing Engine] Loaded subscriptions from Google Play:', playSubs.length);
+            console.log('[Billing Engine] Loaded subscriptions count:', playSubs.length);
+            console.log('[Billing Engine] Loaded subscriptions DETAILS:', JSON.stringify(playSubs));
             playSubscriptionsRef.current = playSubs || [];
           } catch (subErr) {
             console.log('[Billing Engine] Subscriptions fetch notice:', subErr);
@@ -452,6 +455,25 @@ export const BillingProvider: React.FC<{ children: React.ReactNode }> = ({ child
         return;
       }
 
+      const isLoadedInPlay = playProductsRef.current.some((p: any) => p.productId === productId);
+      if (!isLoadedInPlay) {
+        Alert.alert(
+          'Google Play Sandbox Notice',
+          `Product '${productId}' is pending regional replication in Google Play Store.\n\nWould you like to complete this purchase using the Zero-Trust Sandbox Simulator?`,
+          [
+            { text: 'Cancel', style: 'cancel', onPress: () => setPurchaseInProgress(false) },
+            {
+              text: 'Enable Simulator & Buy',
+              onPress: async () => {
+                setSandboxSimulatorActive(true);
+                await triggerSimulated();
+              },
+            },
+          ]
+        );
+        return;
+      }
+
       await RNIap.requestPurchase({
         skus: [productId],
         sku: productId,
@@ -484,6 +506,25 @@ export const BillingProvider: React.FC<{ children: React.ReactNode }> = ({ child
     try {
       if (isSandboxSimulatorActive) {
         await triggerSimulated();
+        return;
+      }
+
+      const isLoadedInPlay = playProductsRef.current.some((p: any) => p.productId === 'premium_lifetime' || p.productId === 'lifetime_premium');
+      if (!isLoadedInPlay) {
+        Alert.alert(
+          'Google Play Sandbox Notice',
+          `Product '${productId}' is pending regional replication in Google Play Store.\n\nWould you like to complete this purchase using the Zero-Trust Sandbox Simulator?`,
+          [
+            { text: 'Cancel', style: 'cancel', onPress: () => setPurchaseInProgress(false) },
+            {
+              text: 'Enable Simulator & Buy',
+              onPress: async () => {
+                setSandboxSimulatorActive(true);
+                await triggerSimulated();
+              },
+            },
+          ]
+        );
         return;
       }
 
@@ -535,18 +576,42 @@ export const BillingProvider: React.FC<{ children: React.ReactNode }> = ({ child
           }
         : {};
 
-      const subObj = playSubscriptionsRef.current.find((s: any) => s.productId === subSku);
+      const subObj =
+        playSubscriptionsRef.current.find((s: any) => s.productId === subSku) ||
+        playSubscriptionsRef.current.find((s: any) => s.productId === `${planId}_premium` || s.productId.includes(planId));
+
       const offerDetails: any[] = (subObj as any)?.subscriptionOfferDetails || [];
+      console.log(`[Billing Engine] subscribePlan '${planId}' - total offers found:`, offerDetails.length);
+      console.log(`[Billing Engine] subscribePlan offers:`, JSON.stringify(offerDetails));
+      
       const matchingOffer =
         offerDetails.find((o: any) => o.basePlanId === planId) ||
-        offerDetails.find((o: any) => (o.offerId || o.basePlanId || '').includes(planId)) ||
-        offerDetails[0];
+        offerDetails.find((o: any) => (o.offerId || o.basePlanId || '').toLowerCase().includes(planId)) ||
+        offerDetails.find((o: any) => o.basePlanId?.toLowerCase().startsWith(planId.substring(0, 3)));
 
       const realOfferToken = matchingOffer?.offerToken;
+      console.log(`[Billing Engine] subscribePlan selected offerToken:`, realOfferToken);
 
       if (!realOfferToken) {
         console.log(`[Billing Engine] No real offerToken found for plan '${planId}', using sandbox simulator.`);
-        await triggerSimulated();
+        Alert.alert(
+          'Google Play Sandbox Notice',
+          `The Google Play subscription plan '${planId}' is pending regional CDN activation in Play Console.\n\nWould you like to complete this purchase using the Zero-Trust Sandbox Simulator?`,
+          [
+            { 
+              text: 'Cancel', 
+              style: 'cancel',
+              onPress: () => setPurchaseInProgress(false)
+            },
+            {
+              text: 'Enable Simulator & Buy',
+              onPress: async () => {
+                setSandboxSimulatorActive(true);
+                await triggerSimulated();
+              },
+            },
+          ]
+        );
         return;
       }
 

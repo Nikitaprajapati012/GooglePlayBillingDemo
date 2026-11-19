@@ -25,6 +25,8 @@ export const NON_CONSUMABLE_PRODUCT_SKUS = [
  */
 export const SUBSCRIPTION_SKUS = [
   'premium_subscription',
+  'monthly_premium',
+  'yearly_premium',
 ] as const;
 
 export const SUBSCRIPTION_BASE_PLAN_IDS = {
